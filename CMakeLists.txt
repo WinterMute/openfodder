@@ -40,10 +40,38 @@ configure_file(cmake/gitver.hpp.in Source/gitver.hpp @ONLY)
 file(GLOB_RECURSE GAMEENGINE_HEADERS "Source/*.hpp")
 file(GLOB_RECURSE GAMEENGINE_SOURCE "Source/*.cpp")
 
-add_executable(openfodder ${GAMEENGINE_SOURCE} ${GAMEENGINE_HEADERS})
+add_executable(${PROJECT_NAME} ${GAMEENGINE_SOURCE} ${GAMEENGINE_HEADERS})
 
 target_include_directories(openfodder PRIVATE
     Source
     ${CMAKE_CURRENT_BINARY_DIR}/Source)
 
-target_link_libraries(openfodder SDL2::SDL2 SDL2_mixer::SDL2_mixer)
+if (NINTENDO_WII OR NINTENDO_GAMECUBE OR NINTENDO_SWITCH)
+     find_package(PkgConfig REQUIRED)
+
+    pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2 SDL2_mixer)
+    target_link_libraries(${PROJECT_NAME} PRIVATE PkgConfig::SDL2)
+
+else()
+    if(TARGET SDL2::SDL2main)
+        # It has an implicit dependency on SDL2 functions, so it MUST be added before SDL2::SDL2 (or SDL2::SDL2-static)
+        target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2main)
+    endif()
+    target_link_libraries(${PROJECT_NAME} PRIVATE SDL2_mixer::SDL2_mixer SDL2::SDL2)
+endif()
+
+if (NINTENDO_WII OR NINTENDO_GAMECUBE)
+    ogc_create_dol(${PROJECT_NAME})
+endif()
+
+if (NINTENDO_SWITCH)
+    nx_generate_nacp (${PROJECT_NAME}.nacp
+        NAME   "OpenFodder"
+        AUTHOR "openfodder team"
+    )
+
+nx_create_nro (${PROJECT_NAME}
+    NACP ${PROJECT_NAME}.nacp
+)
+
+endif()
